@@ -19,19 +19,69 @@ div.loading {
   display: none;
 }
 
+#episodes-results {
+  display: flex;
+  flex-flow: row wrap;
+}
+
+.episode-tile {
+  flex: 1;
+}
+
 .selectitem {
   margin: 0.25rem;
 }
 
 .seriesindicator {
-  height: 1rem;
-  width: 100%;
+  min-height: 1rem;
 }
 
 .tile {
-  width: 100%;
-  display: inline-block;
-  margin-bottom: 2rem;
-  border: 1px solid gray;
-  height: 12rem;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  margin-bottom: .8rem;
+  border: 2px solid gray;
+}
+
+.tilecontent {
+  display: flex;
+  flex-flow: column;
+}
+
+/* #DCE OPC-139 override tile hover to be normal cursor (non clickable) */
+.tile:hover {
+  cursor: inherit;
+}
+
+/* #DCE OPC-139 player iframe */
+#player-frame {
+  min-height: 300px;
+  width: 90%;
+}
+
+#player-options {
+  display: flex;
+  flex-flow: column;
+  flex-wrap: wrap;
+  width: 90%;
+}
+
+#player-option-range {
+  display: inline-flex;
+}
+
+#player-range {
+  border:0;
+  color:#f6931f;
+  font-weight:bold;
+  max-width: 6em;
+}
+
+#player-slider-range {
+  flex-grow: 2;
+  margin: .5em;
+  margin-right: 3em;
+  min-width: 10em;
 }

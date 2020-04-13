@@ -24,6 +24,7 @@
 'use strict';
 
 const player = '/play/';
+const dce_player_tool = window.location.origin + '/lti/player/';
 
 var currentpage,
     defaultLang = i18ndata['en-US'],
@@ -101,6 +102,8 @@ function loadPage(page) {
           template = $('#template-episode').html(),
           tpldata = {
             player: player + episode.id,
+            url: dce_player_tool + episode.id,
+            mpID: episode.id,
             title: episode.dcTitle,
             i18ncreator: i18ncreator,
             created: tryLocalDate(episode.dcCreated)};
