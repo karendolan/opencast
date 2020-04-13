@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv=content-type content="text/html; charset=utf-8" />
-<meta name=author content="Opencast" />
-<meta name=viewport content="width=device-width, initial-scale=1">
-<link rel=stylesheet type=text/css href=deeplink.css />
-<link rel=stylesheet type=text/css href=/engage/ui/css/engage-ui.css />
-<link rel=stylesheet href=/ltitools/lib/font-awesome/css/font-awesome.min.css />
-<link rel=stylesheet href=/ltitools/lib/paginationjs/dist/pagination.css />
-<link rel=stylesheet href=/ltitools/lib/bootstrap/dist/css/bootstrap.min.css />
-
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<meta name="author" content="Opencast" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" type="text/css" href="/engage/mm/css/engage-ui.css" />
+<link rel="stylesheet" href="/ltitools/lib/font-awesome/css/font-awesome.min.css" />
+<link rel="stylesheet" href="/ltitools/lib/paginationjs/dist/pagination.css" />
+<link rel="stylesheet" href="/ltitools/lib/bootstrap/dist/css/bootstrap.min.css" />
+<link rel="stylesheet" href="/ltitools/lib/jquery-ui-dist/jquery-ui.css" />
+<!-- #DCE OPC-139 add deeplink style last to overrule other (i.e. engage) styles -->
+<link rel="stylesheet" type="text/css" href="deeplink.css" />
 
 <title>Opencast: Deep Linking</title>
 </head>
@@ -44,11 +45,11 @@
 
 <!-- Template for episodes -->
 <script id=template-episode type=x-tmpl-mustache>
-<div class="col-xs-12 col-sm-6 col-md-4 col-lg-4 float-left" for={{mpID}}>
-  <div class=tile>
+<div class="col-xs-12 col-sm-6 col-md-4 col-lg-4 episode-tile" for={{mpID}}>
+  <div class="tile">
     <div class="seriesindicator" style="background-color: {{color}};"></div>
     <div class="tilecontent">
-      <h4 class="title">{{title}}</h4>
+      <h5 class="title">{{title}}</h5>
       <div>
         <img class="thumbnail img-fluid img-thumbnail" alt=Preview src={{image}} />
       </div>
@@ -57,8 +58,10 @@
         <div class="seriestitle">{{seriestitle}}</div>
         <div class="date">{{created}}</div>
         <div class="duration">{{duration}}</div>
-        <a href="#" class="btn btn-primary card-text selectitem"
-          onclick="populateData('{{title}}', '{{image}}', '{{created}}', '{{tool}}')">Select</a>
+        <a href="#" class="btn btn-primary card-text selectitem" id="populateData-{{mpID}}"
+          onclick="populateData('{{mpID}}')">Select</a>
+        <a href="#" class="btn btn-primary card-text selectitem" id="preview-{{mpID}}"
+            onclick="loadPlayerPreview('{{mpID}}', '{{durationSecs}}')">View</a>
       </div>
     </div>
   </div>
@@ -68,13 +71,18 @@
 <!-- Template for series -->
 <script id=template-series type=x-tmpl-mustache>
 <div class="col-xs-12 col-sm-6 col-md-4 col-lg-4 float-left">
-  <div class=tile>
+  <div class="tile">
     <div class="seriesindicator" style="background-color: {{color}};"></div>
-    <div class="titlecontent">
-      <h4 class="title">{{title}}</h4>
+    <div class="tilecontent">
+      <h5 class="subject">{{subject}}</h5>
+      <div class="infos">
+        <div class="title">{{title}}</div>
+        <div class="creator">{{i18ncreator}}</div>
+        <div class="crn">{{serieslabel}}</div>
+        <a href="#" class="btn btn-primary card-text selectitem"
+          onclick="showEpisodesList('{{identifier}}')">Select</a>
+      </div>
     </div>
-    <a href="#" class="btn btn-primary selectitem"
-      onclick="populateData('{{title}}', '{{image}}', '{{created}}', '{{tool}}')">Select</a>
   </div>
 </div>
 </script>
@@ -87,11 +95,22 @@
 <!-- Template for search field -->
 <script id=template-episodes-filter type=x-tmpl-mustache>
   <input type=text id="selected-episodes" value="{{query}}"/>
-  <input type=submit onClick="refreshEpisodesList()" value="Refresh list"/>
+  <input type=submit onClick="refreshEpisodesList('{{series}}')" name="search" value="Search"/>
+  {{#seriestoggle}}
+  <input type=checkbox onClick="toggleSeriesFilter('{{seriestoggle}}')" {{seriestoggleCheck}}
+     name="toggle-series-filter" id="toggle-series-filter"  value="{{seriestoggle}}">
+  {{serieslabel}}
+  {{/seriestoggle}}
+  {{#canReset}}
+  <input type=submit onClick="resetEpisodesList('{{seriesorig}}')" name="reset" value="Reset"/>
+  {{/canReset}}
 </script>
 <script id=template-series-filter type=x-tmpl-mustache>
   <input type=text id="selected-series" value="{{query}}"/>
-  <input type=submit onClick="refreshSeriesList()" value="Refresh list"/>
+  <input type=submit onClick="refreshSeriesList()" value="Search"/>
+  {{#query}}
+  <input type=submit onClick="resetSeriesList()" name="reset" value="Reset"/>
+  {{/query}}
 </script>
 
 <!-- Template for spinner -->
@@ -102,7 +121,46 @@
   </div>
 </script>
 
+<!-- Template for player and range -->
+<script id=template-player-preview type=x-tmpl-mustache >
+  <iframe style="height" id="player-frame" data-url="{{playerUrl}}" src="{{playerUrl}}">
+  </iframe>
+  <div id="player-options">
+    <div id="player-option-range">
+      <div id="player-slider-input" >
+        <label for="player-range">Range (seconds):</label>
+        <input type="text" id="player-range" readonly="readonly" />
+      </div>
+      <div id="player-slider-range"></div>
+    </div>
+  </div>
+  <div id="player-action-buttons">
+    <a href="#" class="btn btn-primary card-text selectitem"
+      onclick="refreshData()">Cancel</a>
+    <a href="#" class="btn btn-primary card-text selectitem"
+      onclick="reloadPlayer('{{playerUrl}}')">Reload with Range</a>
+    <a href="#" class="btn btn-primary card-text selectitem" id="populateData-{{mpID}}-range"
+      onclick="populateData('{{mpID}}')">Select</a>
+  </div>
+  <script type="text/javascript">
+  $( function() {
+    $( "#player-slider-range" ).slider({
+      range: true,
+      min: 0,
+      max: {{durationSecs}},
+      values: [ 0, {{durationSecs}} ],
+      slide: function( event, ui ) {
+        $( "#player-range" ).val(ui.values[ 0 ] + " - " + ui.values[ 1 ]);
+      }
+    });
+    $( "#player-range" ).val($( "#player-slider-range" ).slider( "values", 0 ) +
+      " - " + $( "#player-slider-range" ).slider( "values", 1 ) );
+  } );
+  </script>
+</script>
+
 <script type=text/javascript src=/ltitools/lib/jquery/dist/jquery.min.js></script>
+<script type=text/javascript src=/ltitools/lib/jquery-ui-dist/jquery-ui.js></script>
 <script type=text/javascript src=/ltitools/lib/bootstrap/dist/js/bootstrap.min.js></script>
 <script type=text/javascript src=/ltitools/lib/axios/dist/axios.min.js></script>
 <script type=text/javascript src=/ltitools/lib/mustache/mustache.min.js></script>
